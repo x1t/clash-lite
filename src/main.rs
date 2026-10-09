@@ -13,6 +13,7 @@ mod state;
 mod subscription;
 mod sysproxy;
 mod ui;
+mod update;
 
 use app::App;
 use std::{
@@ -131,9 +132,14 @@ fn run_message_loop(app: &App) {
 }
 
 fn main() {
+    // Launched by the previous version after a self-update: wait for it to exit, then clean up.
+    if std::env::args().any(|a| a == "--post-update") {
+        update::finish_post_update();
+    }
     if already_running() {
         return;
     }
+    update::cleanup_leftover();
     ui::mark_main_thread();
     let (tx, rx) = mpsc::channel();
     let app = Arc::new(App::new(tx));

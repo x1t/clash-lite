@@ -214,6 +214,12 @@ pub fn build(app: &App) -> Menu {
     }
     item(&menu, "log", "查看日志", true);
     item(&menu, "mihomo", "更新 mihomo", true);
+    item(
+        &menu,
+        "upgrade",
+        &format!("检查更新 (当前 v{})", env!("CARGO_PKG_VERSION")),
+        true,
+    );
     check(&menu, "silent", "静默启动", !snap.show_dashboard);
     check(&menu, "auto", "开机自启", autostart::enabled());
     item(&menu, "quit", "退出", true);
@@ -259,6 +265,7 @@ pub fn handle(app: &Arc<App>, id: &str) {
         "log" => open(&base_dir().join("mihomo.log").to_string_lossy()),
         "dash" => open_dashboard(app),
         "mihomo" => task(app, |a| a.update_mihomo().map(Some)),
+        "upgrade" => task(app, |a| crate::update::run(a.lock().port)),
         "silent" => task(app, |a| a.toggle_silent().map(|_| None)),
         "mode" => task(app, move |a| a.api().set_mode(&arg).map(|_| None)),
         "node" => task(app, move |a| {

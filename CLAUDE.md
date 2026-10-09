@@ -26,6 +26,7 @@ Windows 托盘程序，管理 `mihomo.exe` 子进程，通过 REST API（`127.0.
 | `api.rs` | mihomo REST 客户端，要带 Bearer 密钥 |
 | `subscription.rs` | 下载订阅（UA 固定为 `xctcc`）、解析 `subscription-userinfo` 等响应头、校验内容 |
 | `assets.rs` | 第一次运行时下载 mihomo（`amd64-v2`）和 `assets/yacd.zip`；先下载到临时目录，再替换正式文件 |
+| `update.rs` | 自我更新：查 GitHub 最新 Release，下载新 exe，把运行中的 exe 改名为 `.old`、新文件就位、重启（`--post-update` 让新进程等旧进程退出后删掉 `.old`）。不做签名校验，只校验 PE 头和大小 |
 | `state.rs` | `state.json` 的读写（先写临时文件再改名），`base_dir()` = exe 所在目录 |
 | `sysproxy.rs` / `autostart.rs` / `clipboard.rs` / `ui.rs` | 注册表代理设置 / 计划任务 / 剪贴板 / 弹窗、图标、线程消息 |
 

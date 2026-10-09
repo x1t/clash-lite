@@ -37,6 +37,7 @@ fn get(url: &str, proxy_port: Option<u16>) -> Res<Vec<u8>> {
     };
     let agent: Agent = Agent::config_builder()
         .proxy(proxy)
+        .user_agent("clash-lite") // the GitHub API rejects requests without a User-Agent
         .timeout_global(Some(Duration::from_secs(300)))
         .build()
         .into();
@@ -49,7 +50,7 @@ fn get(url: &str, proxy_port: Option<u16>) -> Res<Vec<u8>> {
 }
 
 /// Direct first; if GitHub is blocked, retry through our own running core.
-fn download(url: &str, proxy_port: Option<u16>) -> Res<Vec<u8>> {
+pub fn download(url: &str, proxy_port: Option<u16>) -> Res<Vec<u8>> {
     get(url, None).or_else(|direct_err| match proxy_port {
         Some(port) => get(url, Some(port)),
         None => Err(direct_err),
