@@ -188,3 +188,16 @@ fn subscription_lifecycle_with_real_mihomo() {
         set_clipboard(&text.replace('\'', "''"));
     }
 }
+
+#[test]
+#[ignore = "needs GitHub access; run with --include-ignored"]
+fn first_run_downloads_mihomo_and_dashboard() {
+    let _ = fs::remove_file(assets::mihomo_path());
+    let _ = fs::remove_dir_all(assets::ui_dir());
+    assets::ensure().expect("first-run download");
+    assert!(assets::ui_dir().join("index.html").is_file());
+    let latest = assets::latest_mihomo_version(None).unwrap();
+    assert_eq!(assets::installed_mihomo_version(), Some(latest));
+    assert!(!base_dir().join("mihomo-staging").exists());
+    assert!(!base_dir().join("ui-staging").exists());
+}
