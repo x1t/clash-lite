@@ -1,4 +1,7 @@
-use crate::{core::CTL_ADDR, state::Res};
+use crate::{
+    core::{CTL_HOST, CTL_PORT},
+    state::Res,
+};
 use serde_json::{Value, json};
 use std::time::Duration;
 use ureq::Agent;
@@ -36,7 +39,7 @@ impl Api {
     }
 
     fn url(path: &str) -> String {
-        format!("http://{CTL_ADDR}{path}")
+        format!("http://{CTL_HOST}:{CTL_PORT}{path}")
     }
 
     fn get(&self, path: &str) -> Res<Value> {

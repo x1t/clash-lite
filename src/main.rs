@@ -2,6 +2,7 @@
 
 mod api;
 mod app;
+mod assets;
 mod autostart;
 mod clipboard;
 mod core;
@@ -93,6 +94,11 @@ fn install_handlers(app: &Arc<App>) {
 fn spawn_workers(app: &Arc<App>, wake: mpsc::Receiver<()>) {
     let a = Arc::clone(app);
     thread::spawn(move || {
+        if let Err(e) = assets::ensure() {
+            ui::message(&format!(
+                "下载组件失败：{e}\n可稍后重启程序重试，或手动把 mihomo.exe 放到程序目录"
+            ));
+        }
         match a.start() {
             Err(e) => ui::message(&format!("启动失败：{e}")),
             Ok(()) if a.lock().state.show_dashboard => menu::open_dashboard(&a),

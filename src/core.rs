@@ -12,7 +12,9 @@ use windows_sys::Win32::System::JobObjects::{
     SetInformationJobObject,
 };
 
-pub const CTL_ADDR: &str = "127.0.0.1:19097";
+pub const CTL_HOST: &str = "127.0.0.1";
+/// Tests use another port so they never collide with a running copy of the app.
+pub const CTL_PORT: u16 = if cfg!(test) { 19098 } else { 19097 };
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 const MAX_LOG_BYTES: u64 = 5 * 1024 * 1024;
 
@@ -53,7 +55,8 @@ impl Core {
         let log = open_log(&base_dir().join("mihomo.log"))?;
         let mut cmd = Command::new(base_dir().join("mihomo.exe"));
         cmd.arg("-d").arg(&data).arg("-f").arg(profile);
-        cmd.args(["-ext-ctl", CTL_ADDR, "-secret", secret]);
+        cmd.arg("-ext-ctl").arg(format!("{CTL_HOST}:{CTL_PORT}"));
+        cmd.args(["-secret", secret]);
         let ui = base_dir().join("ui");
         if ui.is_dir() {
             cmd.arg("-ext-ui").arg(ui);

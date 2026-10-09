@@ -213,6 +213,7 @@ pub fn build(app: &App) -> Menu {
         item(&menu, "dash", "打开面板", true);
     }
     item(&menu, "log", "查看日志", true);
+    item(&menu, "mihomo", "更新 mihomo", true);
     check(&menu, "silent", "静默启动", !snap.show_dashboard);
     check(&menu, "auto", "开机自启", autostart::enabled());
     item(&menu, "quit", "退出", true);
@@ -257,6 +258,7 @@ pub fn handle(app: &Arc<App>, id: &str) {
         "quit" => ui::quit(),
         "log" => open(&base_dir().join("mihomo.log").to_string_lossy()),
         "dash" => open_dashboard(app),
+        "mihomo" => task(app, |a| a.update_mihomo().map(Some)),
         "silent" => task(app, |a| a.toggle_silent().map(|_| None)),
         "mode" => task(app, move |a| a.api().set_mode(&arg).map(|_| None)),
         "node" => task(app, move |a| {
@@ -292,11 +294,9 @@ pub fn open_dashboard(app: &App) {
 
 fn dashboard_url(app: &App) -> String {
     let secret = app.lock().state.secret.clone();
-    format!(
-        "http://{}/ui/?hostname=127.0.0.1&port=19097&secret={}",
-        crate::core::CTL_ADDR,
-        crate::api::encode(&secret)
-    )
+    let (host, port) = (crate::core::CTL_HOST, crate::core::CTL_PORT);
+    let secret = crate::api::encode(&secret);
+    format!("http://{host}:{port}/ui/?hostname={host}&port={port}&secret={secret}")
 }
 
 #[cfg(test)]

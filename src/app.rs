@@ -1,6 +1,6 @@
 use crate::{
     api::Api,
-    clipboard,
+    assets, clipboard,
     core::Core,
     state::{Profile, Res, State, now_secs, profile_path, profiles_dir},
     subscription::{self, Fetched},
@@ -138,6 +138,23 @@ impl App {
 
     pub fn start(&self) -> Res<()> {
         self.lock().restart()
+    }
+
+    /// Downloads while the core keeps running, then swaps the exe during a short restart.
+    pub fn update_mihomo(&self) -> Res<String> {
+        let port = self.lock().port;
+        let latest = assets::latest_mihomo_version(port)?;
+        let current = assets::installed_mihomo_version();
+        if current.as_deref() == Some(latest.as_str()) {
+            return Ok(format!("mihomo 已是最新版本 {latest}"));
+        }
+        let staged = assets::stage_mihomo(&latest, port)?;
+        let mut g = self.lock();
+        g.core.stop();
+        assets::commit_mihomo(&staged)?;
+        g.restart()?;
+        let from = current.unwrap_or_else(|| "未知版本".into());
+        Ok(format!("mihomo 已从 {from} 更新到 {latest}"))
     }
 
     pub fn shutdown(&self) {

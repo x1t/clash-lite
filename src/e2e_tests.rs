@@ -1,8 +1,7 @@
-//! End-to-end: real HTTP subscription server, real clipboard, real mihomo.exe.
-//! Needs `mihomo.exe` next to the test binary (target/debug/deps).
+//! End-to-end: real HTTP subscription server, real clipboard, real mihomo.exe downloaded from GitHub.
 use crate::{
     app::App,
-    clipboard,
+    assets, clipboard,
     state::{base_dir, profile_path},
 };
 use serde_json::Value;
@@ -10,6 +9,7 @@ use std::{
     fs,
     io::{Read, Write},
     net::TcpListener,
+    path::Path,
     process::Command,
     sync::{Arc, Mutex, mpsc},
     thread,
@@ -61,30 +61,28 @@ fn group_now(app: &App) -> String {
         .to_string()
 }
 
+const OLD_MIHOMO: &str = "v1.19.31";
+
 #[test]
-#[ignore = "needs mihomo.exe and a desktop clipboard; run with --include-ignored"]
+#[ignore = "needs GitHub access and a desktop clipboard; run with --include-ignored"]
 fn subscription_lifecycle_with_real_mihomo() {
-    assert!(
-        base_dir().join("mihomo.exe").exists(),
-        "put mihomo.exe in {}",
-        base_dir().display()
-    );
-    let _ = fs::remove_file(base_dir().join("state.json"));
-    let _ = fs::remove_dir_all(base_dir().join("profiles"));
-    let _ = fs::remove_dir_all(base_dir().join("data"));
-    let ui = base_dir().join("ui");
-    if !ui.is_dir() {
-        let src = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("ui");
-        let ok = Command::new("robocopy")
-            .arg(&src)
-            .arg(&ui)
-            .arg("/E")
-            .arg("/NJH")
-            .arg("/NJS")
-            .status()
-            .unwrap();
-        assert!(ok.code().is_some_and(|c| c < 8), "copy ui");
+    for leftover in ["state.json", "mihomo.exe"] {
+        let _ = fs::remove_file(base_dir().join(leftover));
     }
+    for leftover in ["profiles", "data", "ui"] {
+        let _ = fs::remove_dir_all(base_dir().join(leftover));
+    }
+    // The bundled dashboard zip unpacks with the same code the app uses.
+    let zip = fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/yacd.zip")).unwrap();
+    assets::extract(&zip, &assets::ui_dir()).expect("extract ui");
+    assert!(assets::ui_dir().join("index.html").is_file());
+    // Start on an older real release so the in-app updater has something to do.
+    let old = assets::stage_mihomo(OLD_MIHOMO, None).expect("download old mihomo");
+    assets::commit_mihomo(&old).unwrap();
+    assert_eq!(
+        assets::installed_mihomo_version().as_deref(),
+        Some(OLD_MIHOMO)
+    );
     let saved_clipboard = clipboard::text();
 
     let body = Arc::new(Mutex::new(yaml("v1")));
@@ -132,7 +130,9 @@ fn subscription_lifecycle_with_real_mihomo() {
     assert!(titles.contains(&"模式".to_string()), "{titles:?}");
 
     // bundled Yacd is served by mihomo via -ext-ui
-    let mut page = ureq::get("http://127.0.0.1:19097/ui/").call().expect("ui");
+    let mut page = ureq::get(format!("http://127.0.0.1:{}/ui/", crate::core::CTL_PORT))
+        .call()
+        .expect("ui");
     assert!(page.body_mut().read_to_string().unwrap().contains("yacd"));
 
     // same URL again updates instead of duplicating
@@ -170,6 +170,15 @@ fn subscription_lifecycle_with_real_mihomo() {
         "direct-b",
         "mihomo keeps the selection across restarts"
     );
+
+    // in-app updater: download latest while running, swap the exe, restart on the same profile
+    let msg = app.update_mihomo().expect("update mihomo");
+    let latest = assets::latest_mihomo_version(None).unwrap();
+    assert!(msg.contains(&latest), "{msg}");
+    assert_eq!(assets::installed_mihomo_version(), Some(latest.clone()));
+    assert!(app.lock().core.alive());
+    assert_eq!(group_now(&app), "direct-b");
+    assert!(app.update_mihomo().unwrap().contains("已是最新"));
 
     app.delete(&id).expect("delete");
     assert!(app.lock().state.profiles.is_empty());
